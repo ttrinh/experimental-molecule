@@ -1,4 +1,4 @@
-import { atom, CallbackInterface } from "recoil";
+import { atom, CallbackInterface, selector, waitForAll } from "recoil";
 import {
   RecoilerCreateParams,
   RecoilerObjectValue,
@@ -7,6 +7,9 @@ import {
   RecoilerValueKey,
   StoredAtoms,
 } from "./types";
+
+export type Truthy<T> = T extends false | "" | 0 | null | undefined ? never : T;
+export const truthy = <T>(value: T): value is Truthy<T> => !!value;
 
 const undefinedAtom = atom({ key: "undefined", default: undefined });
 
@@ -30,26 +33,39 @@ export class Recoiler {
       return;
     }
 
-    // Value is object - Creates atom for each key
-    if (this.isObj(defaultValue)) {
-      Object.keys(defaultValue).forEach((k) => {
-        const childKey = `${key}.${k}`;
-
-        // next-level deep
-        this.createEntity({
-          key: childKey,
-          defaultValue: defaultValue[k],
-        });
+    // if it's simple primitive value - create a atom
+    if (!this.isObj(defaultValue)) {
+      // create & store atom
+      this.storedAtoms[key] = atom({
+        key,
+        default: defaultValue,
       });
 
-      return;
+      return this.storedAtoms[key];
     }
 
-    // create & store atom
-    this.storedAtoms[key] = atom({
-      key,
-      default: defaultValue,
+    // Value is object - Creates atom for each key
+    // next-level deep - key building to form a breadcrumb path.
+    Object.keys(defaultValue).forEach((k) => {
+      this.createEntity({
+        key: `${key}.${k}`,
+        defaultValue: defaultValue[k],
+      });
     });
+
+    // // creates entity selector for the object
+    // const entitySelector = selector<>({
+    //   key,
+    //   get: ({ get }) => {
+    //     const childValues = get(
+    //       waitForAll(objAtoms.map((atom) => atom).filter(truthy))
+    //     );
+
+    //     return childValues;
+    //   },
+    // });
+
+    // return entitySelector;
   }
 
   /** GET A SINGLE ATOM BY KEY - single atom must always be primitive */
