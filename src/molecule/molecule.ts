@@ -58,6 +58,7 @@ export const molecule = <T extends Record<string, any>>(
   });
 
   return {
+    keys,
     getAtom,
     getFull_SLOW,
   };
