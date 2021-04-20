@@ -1,7 +1,8 @@
 import React, { useEffect } from "react";
 import { RecoilRoot } from "recoil";
 import "./App.css";
-import InputName from "./Input";
+import Input from "./Input";
+import InputObject from "./InputObject";
 import { recoilManager } from "./recoiler/recoiler";
 import { RecoilerInit } from "./recoiler/RecoilerRoot";
 import Show from "./Show";
@@ -26,18 +27,21 @@ function App() {
 
       <div className="App">
         <header className="App-header">
-          <InputName recoilKey="person.name" />
+          <Input recoilKey="person.name" />
           <Show recoilKey="person.name" />
           <Show recoilKey="person.name" />
           <Show recoilKey="person.name" />
           <hr />
-          <InputName recoilKey="person.age" />
+          <Input recoilKey="person.age" />
           <Show recoilKey="person.age" />
           <hr />
-          <InputName recoilKey="person.actions.eat" />
+          <Input recoilKey="person.actions.eat" />
           <Show recoilKey="person.actions.eat" />
           <hr />
-          <InputName recoilKey="non-existed" />
+          <InputObject />
+          <Show recoilKey="person" />
+          <hr />
+          <Input recoilKey="non-existed" />
           <Show recoilKey="non-existed" />
         </header>
       </div>

@@ -1,17 +1,20 @@
-import { atom, CallbackInterface, selector, waitForAll } from "recoil";
+import {
+  atom,
+  CallbackInterface,
+  DefaultValue,
+  RecoilState,
+  selector,
+  waitForAll,
+} from "recoil";
+
 import {
   RecoilerCreateParams,
   RecoilerObjectValue,
-  RecoilerPrimitiveValue,
   RecoilerValue,
-  RecoilerValueKey,
+  StoredAtom,
   StoredAtoms,
 } from "./types";
-
-export type Truthy<T> = T extends false | "" | 0 | null | undefined ? never : T;
-export const truthy = <T>(value: T): value is Truthy<T> => !!value;
-
-const undefinedAtom = atom({ key: "undefined", default: undefined });
+import { compareAndSet, isPrimitive, truthy, undefinedAtom } from "./utils";
 
 export class Recoiler {
   // store atoms
@@ -26,61 +29,87 @@ export class Recoiler {
     this.recoilMethods = recoilCallbacks;
   }
 
-  /** CREATE ENTITY - Can be a primitive or nexted literal object */
+  /** CREATE ENTITY - Can be a primitive or nested literal object */
   public createEntity({ key, defaultValue }: RecoilerCreateParams) {
     if (this.exists(key)) {
       console.warn(`Recoiler: Cannot create - Entity '${key}' exists`);
       return;
     }
 
-    // if it's simple primitive value - create a atom
-    if (!this.isObj(defaultValue)) {
-      // create & store atom
-      this.storedAtoms[key] = atom({
-        key,
-        default: defaultValue,
-      });
-
-      return this.storedAtoms[key];
+    // Value is simple primitive value - create an atom and store it
+    if (isPrimitive(defaultValue)) {
+      this.storedAtoms[key] = atom({ key, default: defaultValue });
+      return;
     }
 
-    // Value is object - Creates atom for each key
-    // next-level deep - key building to form a breadcrumb path.
-    Object.keys(defaultValue).forEach((k) => {
+    /**
+     * Value is Object
+     * - Creates atom for each key (primitive value only)
+     * - Next-level deep, key building to form a breadcrumb path.
+     */
+    const childKeys = Object.keys(defaultValue);
+    childKeys.forEach((childK) => {
       this.createEntity({
-        key: `${key}.${k}`,
-        defaultValue: defaultValue[k],
+        key: `${key}.${childK}`,
+        defaultValue: defaultValue[childK],
       });
     });
 
-    // // creates entity selector for the object
-    // const entitySelector = selector<>({
-    //   key,
-    //   get: ({ get }) => {
-    //     const childValues = get(
-    //       waitForAll(objAtoms.map((atom) => atom).filter(truthy))
-    //     );
+    // create and store entity selector for the nested object
+    const selectorKeys = childKeys.map((k) => `${key}.${k}`);
+    const selectorObject = selector<RecoilerObjectValue>({
+      key,
+      // @ts-ignore
+      get: ({ get }) => {
+        const values = get(
+          waitForAll(selectorKeys.map((childK) => this.getAtom(childK)))
+        ).filter(truthy);
 
-    //     return childValues;
-    //   },
-    // });
+        // @ts-ignore
+        return values.reduce<RecoilerObjectValue>((carrier, value, index) => {
+          // primitive values only
+          return {
+            ...carrier,
+            [childKeys[index]]: value,
+          };
+        }, {});
+      },
+      set: ({ set, get, reset }, newValue) => {
+        if (newValue instanceof DefaultValue) {
+          selectorKeys.forEach((k) => {
+            reset(this.getAtom(k));
+          });
 
-    // return entitySelector;
+          return;
+        }
+
+        const _set = compareAndSet(get, set);
+
+        Object.keys(newValue).forEach((k) => {
+          // @ts-ignore
+          _set(this.getAtom(`${key}.${k}`), newValue[k]);
+        });
+      },
+    });
+
+    this.storedAtoms[key] = selectorObject;
   }
 
   /** GET A SINGLE ATOM BY KEY - single atom must always be primitive */
-  public getAtom(key: RecoilerValueKey) {
+  public getAtom(key: string): StoredAtom | RecoilState<undefined> {
     return this.storedAtoms[key] || undefinedAtom;
   }
 
   /** UPDATE A SINGLE ATOM BY KEY */
-  public setAtom(key: RecoilerValueKey, value: RecoilerPrimitiveValue) {
+  public setAtom(key: string, value: RecoilerValue) {
+    console.log(this.storedAtoms);
     if (!this.exists(key)) {
       console.warn(`Recoiler: Cannot update - Entity '${key}' does not exist`);
       return;
     }
 
-    this.recoilMethods?.set(this.storedAtoms[key], value);
+    // @ts-ignore
+    this.recoilMethods?.set(this.getAtom(key), value);
   }
 
   /** RESET ALL / CLEAN UP */
@@ -93,13 +122,8 @@ export class Recoiler {
     this.storedAtoms = {};
   }
 
-  /**
-   * HELPERS
-   */
-  private exists = (key: RecoilerValueKey) => !!this.storedAtoms[key];
-
-  private isObj = (obj: RecoilerValue): obj is RecoilerObjectValue =>
-    typeof obj === "object" && !!obj;
+  /** CHECK IF ATOM EXISTS BY KEY */
+  private exists = (key: string) => !!this.storedAtoms[key];
 }
 
 /** First Recoiler Instance */

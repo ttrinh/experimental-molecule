@@ -1,18 +1,33 @@
 import { RecoilState } from "recoil";
 
 export type RecoilerPrimitiveValue = string | number | boolean;
-export type RecoilerValueKey = string;
+
 export type RecoilerObjectValue = {
-  [key: string]: RecoilerValue;
+  [key: string]: RecoilerPrimitiveValue;
 };
 
 export type RecoilerValue = RecoilerPrimitiveValue | RecoilerObjectValue;
 
+export type StoredAtom =
+  | RecoilState<RecoilerPrimitiveValue>
+  | RecoilState<RecoilerObjectValue>;
+
 export interface StoredAtoms {
-  [key: string]: RecoilState<RecoilerPrimitiveValue>;
+  [key: string]: StoredAtom;
 }
 
+/**
+ * Create types
+ */
+export interface RecoilerLiteralObjectValue {
+  [key: string]: RecoilerPrimitiveValue | RecoilerLiteralObjectValue;
+}
+
+export type RecoilerCreateValue =
+  | RecoilerPrimitiveValue
+  | RecoilerLiteralObjectValue;
+
 export interface RecoilerCreateParams {
-  key: RecoilerValueKey;
-  defaultValue: RecoilerValue;
+  key: string;
+  defaultValue: RecoilerCreateValue;
 }

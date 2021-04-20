@@ -1,15 +1,18 @@
 import React from "react";
 import { useRecoilValue } from "recoil";
 import { recoilManager } from "./recoiler/recoiler";
+import { isPrimitive } from "./recoiler/utils";
 
 interface ShowProps {
   recoilKey: string;
 }
 
 const Show: React.FC<ShowProps> = ({ recoilKey }) => {
-  const key = useRecoilValue(recoilManager.getAtom(recoilKey));
+  // @ts-ignore
+  const value = useRecoilValue(recoilManager.getAtom(recoilKey));
 
-  return <div className="show">{key}</div>;
+  const text = isPrimitive(value) ? value : JSON.stringify(value);
+  return <div className="show">{text}</div>;
 };
 
 export default Show;
