@@ -27,12 +27,12 @@ export const MoleculeInput = () => {
 
 export const MoleculeAge = () => {
   const age = useRecoilValue(person.getAtom("age"));
-  return <div>{age}</div>;
+  return <pre>[getAtom("age")] age: {age}</pre>;
 };
 
 export const MoleculeName = () => {
   const name = useRecoilValue(person.getAtom("name"));
-  return <div>{name}</div>;
+  return <pre>[getAtom("name")] name: {name}</pre>;
 };
 
 export const MoleculeShowAll = () => {
@@ -41,8 +41,8 @@ export const MoleculeShowAll = () => {
 
   return (
     <div>
-      <pre>{JSON.stringify(peter)}</pre>
-      <button onClick={reset}>Reset</button>
+      <pre>[getFull_SLOW()]{JSON.stringify(peter)}</pre>
+      <button onClick={reset}>Reset All</button>
     </div>
   );
 };
@@ -50,11 +50,7 @@ export const MoleculeShowAll = () => {
 export const MoleculeShowOneOfAll = () => {
   const peter = useRecoilValue(person.getFull_SLOW);
 
-  return (
-    <div>
-      <pre>{peter.action}</pre>
-    </div>
-  );
+  return <div>[a key in getFull_SLOW()] action: {peter.action}</div>;
 };
 
 export const Examples = () => {

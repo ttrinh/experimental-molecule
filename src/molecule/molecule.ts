@@ -25,20 +25,17 @@ export const molecule = <T extends Record<string, any>>(
    * @param key a key in entity
    * @returns RecoilState<value type>
    */
-  const getAtom = <K extends keyof T>(key: K): RecoilState<T[K]> => {
-    // @ts-ignore - having <K extends keyof T> to exact correct type of value from key
-    return atoms[key];
-  };
+  // @ts-ignore - having <K extends keyof T> to exact correct type of value from key
+  const getAtom = <K extends keyof T>(key: K): RecoilState<T[K]> => atoms[key];
 
-  // Care
+  // Use GET cautiously, this connects to all atoms.
+  // Optimized to be used as SET
   const getFull_SLOW = selector<T>({
     key: moleculeKey,
     get: ({ get }) => {
-      const values = get(waitForAll(keys.map((k) => {
-        return atoms[k];
-      })));      
+      const values = get(waitForAll(keys.map((k) => atoms[k])));      
 
-      return keys.reduce(
+      return keys.reduce<T>(
         (carrier, k, idx) => ({
           ...carrier,
           [k]: values[idx],
