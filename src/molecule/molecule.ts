@@ -1,20 +1,39 @@
-import { atom, DefaultValue, RecoilState, selector, waitForAll } from "recoil";
-import { compareAndSet } from "./utils";
+import {
+  atom,
+  DefaultValue,
+  RecoilState,
+  selector,
+  selectorFamily,
+  waitForAll,
+} from "recoil";
 
-// 'any' usage is essential here to correctly extract type of key and value from entity
-export const molecule = <T extends Record<string, any>>(
+import { compareAndSet } from "./utils";
+import { GetAtomsValue, Molecule, MoleculeShape } from "./types";
+
+const emptyAtom = atom<undefined>({
+  key: "emptyAtom",
+  default: undefined,
+});
+
+/**
+ * Create a molecule from an object literal - consists of atoms for each object key.
+ *
+ * @param moleculeKey - an unique molecule key
+ * @param defaultShape - default value of the object literal.
+ */
+export const molecule = <T extends MoleculeShape>(
   moleculeKey: string,
-  obj: T
-) => {
-  const keys = Object.keys(obj);
+  defaultShape: T
+): Molecule<T> => {
+  const atomKeys = Object.keys(defaultShape);
 
   // Internally create and store atoms
-  const atoms = keys.reduce(
+  const atoms = atomKeys.reduce(
     (carrier, k) => ({
       ...carrier,
       [k]: atom({
         key: `${moleculeKey}.${k}`,
-        default: obj[k],
+        default: defaultShape[k],
       }),
     }),
     {} as Record<keyof T, RecoilState<T[keyof T]>>
@@ -23,19 +42,56 @@ export const molecule = <T extends Record<string, any>>(
   /**
    * Get an atom by key
    * @param key a key in entity
-   * @returns RecoilState<value type>
    */
-  // @ts-ignore - having <K extends keyof T> to exact correct type of value from key
-  const getAtom = <K extends keyof T>(key: K): RecoilState<T[K]> => atoms[key];
+  const getAtom: Molecule<T>["getAtom"] = (key) => {
+    // Force assign type as it can be undefined when atom yet to be created.
+    return (atoms[key] ?? emptyAtom) as RecoilState<T[keyof T] | undefined>;
+  };
 
-  // Use GET cautiously, this connects to all atoms.
-  // Optimized to be used as SET
-  const getFull_SLOW = selector<T>({
+  /**
+   * Get atoms by keys
+   * @param keys keys in entity
+   */
+  const getAtoms: Molecule<T>["getAtoms"] = selectorFamily({
+    key: `${moleculeKey}-atoms`,
+    get:
+      (keys) =>
+      ({ get }) => {
+        const values = get(waitForAll(keys.map((k) => getAtom(k))));
+
+        return keys.reduce(
+          (carrier, k, idx) => ({
+            ...carrier,
+            [k]: values[idx],
+          }),
+          {} as GetAtomsValue<T>
+        );
+      },
+    set:
+      (keys) =>
+      ({ get, set, reset }, newValue) => {
+        if (newValue instanceof DefaultValue) {
+          keys.forEach((k) => reset(getAtom(k)));
+          return;
+        }
+
+        const _set = compareAndSet(get, set);
+        keys.forEach((k) => _set(getAtom(k), newValue[k]));
+      },
+  });
+
+  /**
+   * Get the whole molecule entity
+   * Use GET cautiously, this connects to all atoms
+   * Optimized to be used as SET
+   * @returns RecoilState<T>
+   */
+  const entity = selector<T>({
     key: moleculeKey,
     get: ({ get }) => {
-      const values = get(waitForAll(keys.map((k) => atoms[k])));      
+      const values = get(waitForAll(atomKeys.map((k) => atoms[k])));
 
-      return keys.reduce<T>(
+      return atomKeys.reduce(
         (carrier, k, idx) => ({
           ...carrier,
           [k]: values[idx],
@@ -45,18 +101,19 @@ export const molecule = <T extends Record<string, any>>(
     },
     set: ({ get, set, reset }, newValue) => {
       if (newValue instanceof DefaultValue) {
-        keys.forEach((k) => reset(getAtom(k)));
+        atomKeys.forEach((k) => reset(getAtom(k)));
         return;
       }
 
       const _set = compareAndSet(get, set);
-      keys.forEach((k) => _set(getAtom(k), newValue[k]));
+      atomKeys.forEach((k) => _set(getAtom(k), newValue[k]));
     },
   });
 
   return {
-    keys,
+    atomKeys,
     getAtom,
-    getFull_SLOW,
+    getAtoms,
+    molecule: entity,
   };
 };

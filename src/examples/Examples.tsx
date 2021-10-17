@@ -1,5 +1,5 @@
 import { useRecoilState, useRecoilValue, useResetRecoilState } from "recoil";
-import { molecule } from "./molecule";
+import { molecule } from "../molecule";
 
 interface Person {
   name: string;
@@ -36,8 +36,8 @@ export const MoleculeName = () => {
 };
 
 export const MoleculeShowAll = () => {
-  const peter = useRecoilValue(person.getFull_SLOW);
-  const reset = useResetRecoilState(person.getFull_SLOW);
+  const peter = useRecoilValue(person.molecule);
+  const reset = useResetRecoilState(person.molecule);
 
   return (
     <div>
@@ -48,7 +48,7 @@ export const MoleculeShowAll = () => {
 };
 
 export const MoleculeShowOneOfAll = () => {
-  const peter = useRecoilValue(person.getFull_SLOW);
+  const peter = useRecoilValue(person.molecule);
 
   return <div>[a key in getFull_SLOW()] action: {peter.action}</div>;
 };

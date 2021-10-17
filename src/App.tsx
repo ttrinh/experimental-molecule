@@ -1,7 +1,7 @@
 import { RecoilRoot } from "recoil";
 
 import "./App.css";
-import { Examples } from "./molecule/Examples";
+import { Examples } from "./examples/Examples";
 import { RecoilerInit } from "./recoiler/RecoilerRoot";
 
 function App() {
